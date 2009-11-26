@@ -132,7 +132,7 @@ if (! this.soda) (function (main) {
     soda.load = function (module, callback) {
         if (typeof(module) == 'array' || module instanceof Array) module = module.slice();
         else module = [module];
-        var url, i, l, j, jl, mods = {}, name, urlBase, script, chars;
+        var url, i, l, j, jl, name, urlBase, script, chars;
         for (i = 0, l = module.length; i < l; i++) {
             name = module[i];
             if (modules[name] || scriptElements[name]) continue;
@@ -152,12 +152,12 @@ if (! this.soda) (function (main) {
                 head.appendChild(script);
                 scriptElements[name] = [
                     script,
-                    soda.ontimeout ?
+                    ontimeout ?
                         main.setTimeout(
                             function () {
-                                if (soda.ontimeout) soda.ontimeout(name, url);
+                                if (ontimeout) ontimeout(name, url);
                             },
-                            soda.timeout * 1000
+                            timeout * 1000
                         ) : 0
                 ];
             }
