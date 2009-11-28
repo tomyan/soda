@@ -1,18 +1,16 @@
-Soda - Javascript Asynchronous Loader
-  by Thomas Yandell
+Soda JavaScript Loader
+======================
 
-Version 1.2
+Version 0.1
 
 Description
-===========
+-----------
 
 Implements a simple asyncronous loader and module pattern based on dynamic
-script tags (or load function for command line Javascript). This intended
-to be loaded before javascript libraries that use the module pattern, allowing
-those libraries to interoperate.
+script tags.
 
 Usage
-=====
+-----
 
 In you html file:
 
@@ -43,10 +41,9 @@ soda.module({
 });
 
 API
-===
+---
 
-Function: soda.lib
-------------------
+### Function: soda.lib
 
 Tell Soda where to load modules within a particular namespace from.
 
@@ -54,8 +51,7 @@ Arguments:
   namespacePrefix - (string/array of strings) prefix(es) of namespaces to load.
   urlPrefix       - (string) prefix of the URL to load modules from.
 
-Function: soda.load
--------------------
+### Function: soda.load
 
 Load a module/modules and run a function when done.
 
@@ -63,8 +59,7 @@ Arguments:
   module   - (string/array of strings) module(s) to load.
   callback - (function, optional) callback to run when the module(/modules) is loaded.
 
-Function: soda.module
----------------------
+### Function: soda.module
 
 Create a new module with the Soda module pattern.
 
@@ -80,8 +75,6 @@ Installation
 
 Copy the file soda.comp.js to a convenient location (can be inlined
 if you want to avoid a HTTP request).
-
-Library authors are encouraged to distribute Soda with their library.
 
 License
 -------
