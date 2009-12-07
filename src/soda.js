@@ -11,21 +11,20 @@ if (! this.soda) (function (main) {
     */
     var soda = main.soda = {},
 
+        // default path to load modules from
+        defaultLoadPath = null,
+
         // array of arrays, each containimg namespace regex, url prefix and a namespace character count
         inc = [],
 
         // script elements and timeouts keyed by module name, for removal
         scriptElements = soda.scriptElements = {},
 
+        // pending modules
+        pendingModules = [],
+
         // loaded Module objects keyed by name
-        modules = soda.modules = {},
-
-        // used to create id's for module load hooks
-        hookIdCounter = 0,
-
-        // hooks to be run when modules are loaded
-        // keyed on unique id, each value is array containing array of mods and callback
-        onLoadModules = soda.onLoadModules = {},
+        modules = {},
 
         // <head> tag to add script elements to
         head = main.document ? main.document.getElementsByTagName('head')[0] : false,
@@ -39,103 +38,131 @@ if (! this.soda) (function (main) {
         // number of seconds to allow for modules to load before debug
         timeout = soda.timeout = 20,
 
-        // regex to match module names and namespace prefixes
-        nsRegex = /^\w+(?:\.\w+)*$/,
+        isNode = (GLOBAL == main),
 
-        // private class: Module - internal representation of a module
-        Module = function (opts) {
-            this.name = opts.name;
-            this.depends = opts.depends;
-            this.onload = opts.onload;
-            this.ran = false;
+        pathPrefix = '';
+
+    function nodePathPrefix () {
+        var sodadir = __filename.split(/[\\\/]/),
+            cwd     = process.cwd().split(/[\\\/]/);
+            root    = '',
+            found   = false;
+
+        sodadir.pop();
+
+        sodadir.shift();
+        cwd.shift();
+
+        for (var i = 0, l = sodadir.length; i < l; i++) {
+            if (found) {
+                root += '../';
+            }
+            else {
+                if (cwd[i] != sodadir[i]) {
+                    found = true;
+                    i--;
+                }
+            }
+        }
+        return root;
+    }
+
+    if (isNode) {
+        pathPrefix = nodePathPrefix();
+    }
+
+    soda.version = 0.2;
+
+    // private class: Module - internal representation of a module
+    var Module = function (name, dependencies, code) {
+        this.name    = name;
+        this.code    = code;
+        this.ran     = false;
+        this.dependencies =
+            (typeof(dependencies) == 'array' || dependencies instanceof Array) ?
+                dependencies : [dependencies];
+
+        if (this.name) {
+            modules[this.name] = this;
             var script = scriptElements[this.name];
             if (script) {
                 main.clearTimeout(script[1]);
                 head.removeChild(script[0]);
                 delete scriptElements[this.name];
             }
-        };
+        }
 
-    soda.version = 1.2;
+        if (this.dependencies.length == 0) {
+            this.run();
+        }
+        else {
+            pendingModules.push(this);
+            this.loadDependencies();
+        }
+    };
 
     // private method: Module.run - execute the implementation function, called when dependencies have loaded.
     Module.prototype.run = function () {
-        this.ran = true;
-        this.onload.call(main);
-        callHooks();
-    };
-
-    // private function: callHooks - check if there are any callbacks ready to run and run them
-    function callHooks () {
-        var i, l, mods, name, hookId, ready, hook;
-        for (hookId in onLoadModules) {
-            ready = true;
-            mods = onLoadModules[hookId][0];
-            for (i = 0, l = mods.length; i < l; i++) {
-                if (! (name = mods[i])) continue;
-                if (modules[name] && modules[name].ran) {
-                    mods.splice(i--, 1);
-				}
-                else ready = false;
+        if (this.name) {
+            this.ran = true;
+            if (! (this.namespace = this.code.apply(main, this.dependencies))) {
+                throw 'module "' + this.name + '" did not return a namespace object';
             }
-            if (ready) {
-                hook = onLoadModules[hookId][1];
-                delete onLoadModules[hookId];
-                main.setTimeout ?
-                    main.setTimeout(hook, 0) :
-                    hook.call(main);
-            }
-        }
-    }
-
-   /**
-    * Function: soda.lib
-    *
-    *   Tell Soda where to load modules within a particular namespace from.
-    *
-    *   Arguments:
-    *     namespacePrefix - (string/array of strings) prefix(es) of namespaces to load.
-    *     urlPrefix       - (string) prefix of the URL to load modules from.
-    *
-    *   Example:
-    *     soda.lib(['myLib', 'myOtherLib'], 'http://mylib.com/1.0');
-    *     soda.load('myLib'); // loads http://mylib.com/1.0/myLib.js
-    *     soda.load('myLib.aNamespace'); // loads http://mylib.com/1.0/myLib/aNamespace.js
-    *     soda.load('myOtherLib.anotherNamespace'); // loads http://mylib.com/1.0/myOtherLib/anotherNamespace.js
-    *     soda.load('myLib2'); // throws unknown module error
-    */
-    soda.lib = function (nsPrefix, urlPrefix) {
-        if (typeof(nsPrefix) == 'array' || nsPrefix instanceof Array) {
-            for (var i = 0, l = nsPrefix.length; i < l; i++)
-                soda.lib(nsPrefix[i], urlPrefix);
+            this.processPendingDependents();
         }
         else {
-            if (! nsRegex.test(nsPrefix))
-                throw "soda.lib: invalid namespace prefix '" + nsPrefix + "'";
-            inc[inc.length] = [
-                new RegExp('^' + nsPrefix.replace('.', '\\.') + '(?:\\.|$)'),
-                urlPrefix,
-				nsPrefix.length
-            ];
+            this.code.apply(main, this.dependencies);
         }
     };
 
-   /** 
-    * Function: soda.load
-    *
-    *   Load a module/modules and run a function when done.
-    *
-    *   Arguments:
-    *     module   - (string/array of strings) module(s) to load.
-    *     callback - (function, optional) callback to run when the module(/modules) is loaded.
-    */
-    soda.load = function (module, callback) {
-        if (typeof(module) == 'array' || module instanceof Array) module = module.slice();
-        else module = [module];
+    Module.prototype.processPendingDependents = function () {
+        var run = [], ready;
+        for (var i = 0, l = pendingModules.length; i < l; i++) {
+            ready = true;
+            for (var j = 0, jl = pendingModules[i].dependencies.length; j < jl; j++) {
+                if (pendingModules[i].dependencies[j] == this.name) {
+                    pendingModules[i].dependencies[j] = this.namespace;
+                }
+                else if (typeof(pendingModules[i].dependencies[j]) == 'string') {
+                    ready = false;
+                }
+            }
+            if (ready) {
+                run.push(pendingModules[i]);
+                pendingModules.splice(i--, 1);
+                l--;
+            }
+        }
+        for (i = 0, l = run.length; i < l; i++) {
+            run[i].run();
+        }
+    };
+
+    Module.prototype.loadNodeDependency = function (name) {
+        if (! isNode) {
+            throw 'can only load node modules when running in node.js';
+        }
+        require.async(name).addCallback(function (mod) {
+            // some shameless duck typing :-p
+            modules[name] = {
+                'name'         : 'node:' + name,
+                'namespace'    : mod,
+                'ran'          : true,
+                'dependencies' : []
+            };
+            Module.prototype.processPendingDependents.call(modules[name]);
+        });
+    };
+
+    Module.prototype.loadDependencies = function () {
         var url, i, l, j, jl, name, urlBase, script, chars;
-        for (i = 0, l = module.length; i < l; i++) {
-            name = module[i];
-            if (modules[name] || scriptElements[name]) continue;
+        for (i = 0, l = this.dependencies.length; i < l; i++) {
+            name = this.dependencies[i];
+            if (typeof(name) != 'string' || modules[name] || scriptElements[name]) continue;
+            if (name.substr(0, 5) == 'node:') {
+                this.loadNodeDependency(name.substr(5));
+                continue;
+            }
 			chars = 0;
             for (j = 0, jl = inc.length; j < jl; j++) {
                 if (inc[j][0].test(name) && inc[j][2] > chars) {
@@ -161,17 +188,56 @@ if (! this.soda) (function (main) {
                         ) : 0
                 ];
             }
-            else if (main.load) {
+            else if (require && require.async) {
+                url = url.replace(/\.js$/, '');
+                require.async(pathPrefix + url);
+            }
+            else if (main.load) { // spidermonkey or similar (TODO - require commonjs?)
                 main.load(url);
             }
             else {
                 throw 'Soda: cannot load, unsupported environment';
             }
-
         }
-        if (callback) {
-            onLoadModules[hookIdCounter++] = [module, callback];
-            callHooks();
+    };
+
+   /**
+    * Function: soda.lib
+    *
+    *   Tell Soda where to load modules within a particular namespace from.
+    *
+    *   Arguments:
+    *     urlPrefix           - (string) prefix of the URL to load modules from.
+    *     namespacePrefix(es) - (list of strings) prefix(es) of namespaces to load.
+    *
+    *   Example:
+    *     soda.lib('http://mylib.com/1.0', 'myLib', 'myOtherLib');
+    *     soda.load('myLib'); // loads http://mylib.com/1.0/myLib.js
+    *     soda.load('myLib.aNamespace'); // loads http://mylib.com/1.0/myLib/aNamespace.js
+    *     soda.load('myOtherLib.anotherNamespace'); // loads http://mylib.com/1.0/myOtherLib/anotherNamespace.js
+    *     soda.load('myLib2'); // throws unknown module error
+    */
+    soda.lib = function (urlPrefix) {
+        var l = arguments.length - 1;
+        if (l == -1) {
+            throw 'soda.lib: no urlPrefix passed';
+        }
+        else if (l == 0) {
+            if (defaultLoadPath) {
+                throw 'soda.lib: default lib path already set';
+            }
+            defaultLoadPath = urlPrefix;
+        }
+        else {
+            var nsPrefix;
+            for (var i = 1; i <= l; i++) {
+                nsPrefix = arguments[i];
+                inc[inc.length] = [
+                    new RegExp('^' + nsPrefix.replace('.', '\\.') + '(?:\\.|$)'),
+                    urlPrefix,
+                    nsPrefix.length
+                ];
+            }
         }
     };
 
@@ -184,18 +250,24 @@ if (! this.soda) (function (main) {
     *     opts - (object) options object containing:
     *       name    - (string, required) the module name (must correspond to the filename).
     *       depends - (array of strings, optional) the modules that this module depends on.
-    *       onload  - (function, required) called when the dependencies are loaded. This is
+    *       code    - (function, required) called when the dependencies are loaded. This is
     *                 where the module implementation is put.
     */ 
     soda.module = function (opts) {
-        var mod = new Module(opts);
-        modules[mod.name] = mod;
-        if (mod.depends && mod.depends.length) {
-            soda.load(mod.depends, function () { mod.run(); });
-        }
-        else {
-            mod.run();
-        }
+        new Module(opts.name, opts.depends || [], opts.code);
     };
 
-})(this);
+   /** 
+    * Function: soda.load
+    *
+    *   Load a module/modules and run a function when done.
+    *
+    *   Arguments:
+    *     modulesToLoad   - (string/array of strings) module(s) to load.
+    *     callback - (function, optional) callback to run when the module(/modules) is loaded.
+    */
+    soda.load = function (dependencies, onload) {
+        new Module(null, dependencies, onload);
+    };
+
+})(GLOBAL || this);
