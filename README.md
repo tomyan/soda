@@ -1,7 +1,7 @@
 Soda JavaScript Loader
 ======================
 
-Version 0.1
+Version 0.2
 
 Description
 -----------
@@ -108,7 +108,7 @@ License
 
 The MIT License
 
-Copyright (c) 2008 Thomas Yandell
+Copyright (c) 2009 Thomas Yandell
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
