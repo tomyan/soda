@@ -14,31 +14,31 @@ Usage
 
 In you html file:
 
-<script type="text/javascript" src="soda.comp.js"></script>
+    &lt;script type=&quot;text/javascript&quot; src=&quot;soda.comp.js&quot;&gt;&lt;/script&gt;
 
-<script type="text/javascript">
+    &lt;script type=&quot;text/javascript&quot;&gt;
 
-    // tell Soda where to find modules that start mylib
-    soda.lib('mylib', '../mylib/src');
+        // tell Soda where to find modules that start mylib
+        soda.lib('mylib', '../mylib/src');
 
-    // load mylib and mylib.blah
-    soda.load(['mylib', 'mylib.blah'], function () {
-        // ../mylib/src/mylib.js and ../mylib/src/mylib/blah.js are loaded here
-    });
+        // load mylib and mylib.blah
+        soda.load(['mylib', 'mylib.blah'], function () {
+            // ../mylib/src/mylib.js and ../mylib/src/mylib/blah.js are loaded here
+        });
 
-    // don't assume they are loaded here - the loader is async
+        // don't assume they are loaded here - the loader is async
 
-</script>
+    &lt;/script&gt;
 
 In your module (Soda module pattern):
 
-soda.module({
-    name : 'mylib',           // this must match the name used to load it
-    depends : ['myotherlib'], // dependencies are automatically loaded
-    onload : function () {
-        // dependencies are available here
-    }
-});
+    soda.module({
+        name : 'mylib',           // this must match the name used to load it
+        depends : ['myotherlib'], // dependencies are automatically loaded
+        onload : function () {
+            // dependencies are available here
+        }
+    });
 
 API
 ---
@@ -84,7 +84,7 @@ The MIT License
 Copyright (c) 2008 Thomas Yandell
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
+of this software and associated documentation files (the &quot;Software&quot;), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
@@ -93,7 +93,7 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in
 all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
