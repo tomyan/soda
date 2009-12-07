@@ -60,6 +60,9 @@ allows you to load node's built in modules and those located in Node's `require.
 This allows Soda to be the only module you need to load synchronously and `soda` to be the only
 global variable that isn't sandboxed by Soda's module system.
 
+This mechanism is likely to be extended in the future to allow alternative modules for different
+environments (e.g. 'node:http|browser:http_over_comet').
+
 API
 ---
 
@@ -100,8 +103,14 @@ directory. The file `src/soda_compressed.js` is created.
 Installation
 ------------
 
-Download the file soda.comp.js from http://cloud.github.com/downloads/tomyan/soda/soda_compressed.js
+Download [soda_compressed.js](http://cloud.github.com/downloads/tomyan/soda/soda_compressed.js)
 and save to a convenient location.
+
+Contact
+-------
+
+You can join the Soda Mailing List by sending an email to [sodajs@librelist.com](mailto:sodajs@librelist.com).
+You can also try the #sodajs channel on Freenode IRC, follow the sodajs user on Twitter for commit information.
 
 License
 -------
