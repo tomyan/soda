@@ -9,7 +9,7 @@ if (! this.soda) (function (main) {
     * to be loaded before javascript libraries that use the module pattern, allowing
     * those libraries to interoperate.
     */
-    var soda = main.soda = {},
+    var soda = main.soda = { verison: 0.2 },
 
         // default path to load modules from
         defaultLoadPath = null,
@@ -40,20 +40,51 @@ if (! this.soda) (function (main) {
 
         isNode = (GLOBAL == main),
 
-        pathPrefix = '';
+        pathPrefix = '',
+
+        // private class: Module - internal representation of a module
+        Module = function (name, dependencies, code) {
+            var script;
+            this.name    = name;
+            this.code    = code;
+            this.ran     = false;
+            this.dependencies =
+                (typeof(dependencies) == 'array' || dependencies instanceof Array) ?
+                    dependencies : [dependencies];
+
+            if (this.name) {
+                modules[this.name] = this;
+                script = scriptElements[this.name];
+                if (script) {
+                    main.clearTimeout(script[1]);
+                    head.removeChild(script[0]);
+                    delete scriptElements[this.name];
+                }
+            }
+
+            if (this.dependencies.length == 0) {
+                this.run();
+            }
+            else {
+                pendingModules.push(this);
+                this.loadDependencies();
+            }
+        };
 
     function nodePathPrefix () {
         var sodadir = __filename.split(/[\\\/]/),
-            cwd     = process.cwd().split(/[\\\/]/);
+            cwd     = process.cwd().split(/[\\\/]/),
             root    = '',
-            found   = false;
+            found   = false,
+            i       = 0,
+            l       = sodadir.length - 2;
 
         sodadir.pop();
 
         sodadir.shift();
         cwd.shift();
 
-        for (var i = 0, l = sodadir.length; i < l; i++) {
+        for (; i < l; i++) {
             if (found) {
                 root += '../';
             }
@@ -64,42 +95,13 @@ if (! this.soda) (function (main) {
                 }
             }
         }
+
         return root;
     }
 
     if (isNode) {
         pathPrefix = nodePathPrefix();
     }
-
-    soda.version = 0.2;
-
-    // private class: Module - internal representation of a module
-    var Module = function (name, dependencies, code) {
-        this.name    = name;
-        this.code    = code;
-        this.ran     = false;
-        this.dependencies =
-            (typeof(dependencies) == 'array' || dependencies instanceof Array) ?
-                dependencies : [dependencies];
-
-        if (this.name) {
-            modules[this.name] = this;
-            var script = scriptElements[this.name];
-            if (script) {
-                main.clearTimeout(script[1]);
-                head.removeChild(script[0]);
-                delete scriptElements[this.name];
-            }
-        }
-
-        if (this.dependencies.length == 0) {
-            this.run();
-        }
-        else {
-            pendingModules.push(this);
-            this.loadDependencies();
-        }
-    };
 
     // private method: Module.run - execute the implementation function, called when dependencies have loaded.
     Module.prototype.run = function () {
@@ -116,10 +118,12 @@ if (! this.soda) (function (main) {
     };
 
     Module.prototype.processPendingDependents = function () {
-        var run = [], ready;
-        for (var i = 0, l = pendingModules.length; i < l; i++) {
+        var run = [], ready, i = 0, l = pendingModules.length, j, jl;
+        for (; i < l; i++) {
             ready = true;
-            for (var j = 0, jl = pendingModules[i].dependencies.length; j < jl; j++) {
+            j = 0;
+            jl = pendingModules[i].dependencies.length;
+            for (; j < jl; j++) {
                 if (pendingModules[i].dependencies[j] == this.name) {
                     pendingModules[i].dependencies[j] = this.namespace;
                 }
@@ -218,7 +222,7 @@ if (! this.soda) (function (main) {
     *     soda.load('myLib2'); // throws unknown module error
     */
     soda.lib = function (urlPrefix) {
-        var l = arguments.length - 1;
+        var l = arguments.length - 1, nsPrefix, i;
         if (l == -1) {
             throw 'soda.lib: no urlPrefix passed';
         }
@@ -229,11 +233,10 @@ if (! this.soda) (function (main) {
             defaultLoadPath = urlPrefix;
         }
         else {
-            var nsPrefix;
-            for (var i = 1; i <= l; i++) {
+            for (i = 1; i <= l; i++) {
                 nsPrefix = arguments[i];
                 inc[inc.length] = [
-                    new RegExp('^' + nsPrefix.replace('.', '\\.') + '(?:\\.|$)'),
+                    new RegExp('^' + nsPrefix + '(?:_|$)'),
                     urlPrefix,
                     nsPrefix.length
                 ];

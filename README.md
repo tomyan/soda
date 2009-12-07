@@ -41,7 +41,7 @@ In your module (Soda module pattern):
     soda.module({
         name    : 'mylib',        // this must match the name used to load it
         depends : ['myotherlib'], // dependencies are automatically loaded
-        onload  : function (myotherlib) {
+        code    : function (myotherlib) {
             // dependencies are available here via parameters
         }
     });
@@ -53,15 +53,11 @@ version) as you would any Node module. You can then load and depend on modules a
 would on the client-side. Additionally, depending on modules with the prefix `node:`
 allows you to load node's built in modules and those located in Node's `require.paths` array:
 
-    soda.module({
-        name    : 'my_amazing_mvc_framework',
-        depends : ['node:sys', 'node:http'],
-        code    : function (sys, http) {
-            sys.puts('hello');
-        }
+    soda.load('node:sys', function (sys) {
+        sys.puts('hello');
     });
 
-This allows Soda to be the only module you need to load synchronously and `soda to be the only
+This allows Soda to be the only module you need to load synchronously and `soda` to be the only
 global variable that isn't sandboxed by Soda's module system.
 
 API
