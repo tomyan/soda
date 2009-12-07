@@ -14,31 +14,55 @@ Usage
 
 In you html file:
 
-    <script type="text/javascript" src="soda.comp.js"></script>
-
+    <script type="text/javascript" src="soda_compressed.js"></script>
+    
     <script type="text/javascript">
-
+        
         // tell Soda where to find modules that start mylib
-        soda.lib('mylib', '../mylib/src');
-
-        // load mylib and mylib.blah
-        soda.load(['mylib', 'mylib.blah'], function () {
-            // ../mylib/src/mylib.js and ../mylib/src/mylib/blah.js are loaded here
-        });
-
+        soda.lib('../mylib/src', 'mylib');
+        
+        // tell Soda where to find all other modules
+        soda.lib('http://my.js.repo/js');
+        
+        // load mylib and mylib_blah
+        soda.load(
+            ['mylib', 'mylib_blah'],
+            function (mylib, mylib_blah) {
+                // ../mylib/src/mylib.js and ../mylib/src/mylib/blah.js are loaded here
+            }
+        );
+        
         // don't assume they are loaded here - the loader is async
-
+        
     </script>
 
 In your module (Soda module pattern):
 
     soda.module({
-        name : 'mylib',           // this must match the name used to load it
+        name    : 'mylib',        // this must match the name used to load it
         depends : ['myotherlib'], // dependencies are automatically loaded
-        onload : function () {
-            // dependencies are available here
+        onload  : function (myotherlib) {
+            // dependencies are available here via parameters
         }
     });
+
+### Using with Node.js
+
+Soda works with Node.js. Use Node's `require` method to load soda (use the uncompressed
+version) as you would any Node module. You can then load and depend on modules as you
+would on the client-side. Additionally, depending on modules with the prefix `node:`
+allows you to load node's built in modules and those located in Node's `require.paths` array:
+
+    soda.module({
+        name    : 'my_amazing_mvc_framework',
+        depends : ['node:sys', 'node:http'],
+        code    : function (sys, http) {
+            sys.puts('hello');
+        }
+    });
+
+This allows Soda to be the only module you need to load synchronously and `soda to be the only
+global variable that isn't sandboxed by Soda's module system.
 
 API
 ---
@@ -48,16 +72,16 @@ API
 Tell Soda where to load modules within a particular namespace from.
 
 Arguments:
-  namespacePrefix - (string/array of strings) prefix(es) of namespaces to load.
   urlPrefix       - (string) prefix of the URL to load modules from.
+  namespacePrefix - (string/strings) optional prefix(es) of namespaces to load.
 
 ### Function: soda.load
 
 Load a module/modules and run a function when done.
 
 Arguments:
-  module   - (string/array of strings) module(s) to load.
-  callback - (function, optional) callback to run when the module(/modules) is loaded.
+  module - (string/array of strings) module(s) to load.
+  onload - (function, optional) callback to run when the module(/modules) is loaded.
 
 ### Function: soda.module
 
@@ -67,14 +91,21 @@ Arguments:
   opts - (object) options object containing:
     name    - (string, required) the module name (must correspond to the filename).
     depends - (array of strings, optional) the modules that this module depends on.
-    onload  - (function, required) called when the dependencies are loaded. This is
-              where the module implementation is put.
+    code    - (function, required) called when the dependencies are loaded, with the
+              namespace of each dependency passed as a paramter. The function should
+              return a namespace object containing the public interface of the module.
+
+Building
+--------
+
+To build a compressed version of Soda from a checked out copy, run `make` in the root
+directory. The file `src/soda_compressed.js` is created.
 
 Installation
 ------------
 
-Copy the file soda.comp.js to a convenient location (can be inlined
-if you want to avoid a HTTP request).
+Download the file soda.comp.js from http://cloud.github.com/downloads/tomyan/soda/soda_compressed.js
+and save to a convenient location.
 
 License
 -------
