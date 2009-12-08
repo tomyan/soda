@@ -9,7 +9,7 @@ if (! this.soda) (function (main) {
     * to be loaded before javascript libraries that use the module pattern, allowing
     * those libraries to interoperate.
     */
-    var soda = main.soda = { verison: 0.2 },
+    var soda = main.soda = { verison: 0.3 },
 
         // default path to load modules from
         defaultLoadPath = null,
@@ -41,6 +41,8 @@ if (! this.soda) (function (main) {
         isNode = (GLOBAL == main),
 
         pathPrefix = '',
+
+        fromPath,
 
         // private class: Module - internal representation of a module
         Module = function (name, dependencies, code) {
@@ -101,6 +103,7 @@ if (! this.soda) (function (main) {
 
     if (isNode) {
         pathPrefix = nodePathPrefix();
+        fromPath = process.cwd();
     }
 
     // private method: Module.run - execute the implementation function, called when dependencies have loaded.
@@ -108,7 +111,7 @@ if (! this.soda) (function (main) {
         if (this.name) {
             this.ran = true;
             if (! (this.namespace = this.code.apply(main, this.dependencies))) {
-                throw 'module "' + this.name + '" did not return a namespace object';
+                throw new Error('module "' + this.name + '" did not return a namespace object');
             }
             this.processPendingDependents();
         }
@@ -144,19 +147,27 @@ if (! this.soda) (function (main) {
 
     Module.prototype.loadNodeDependency = function (name) {
         if (! isNode) {
-            throw 'can only load node modules when running in node.js';
+            throw new Error('can only load node modules when running in node.js');
         }
-        require.async(name).addCallback(function (mod) {
-            // some shameless duck typing :-p
-            modules[name] = {
-                'name'         : 'node:' + name,
-                'namespace'    : mod,
-                'ran'          : true,
-                'dependencies' : []
-            };
-            Module.prototype.processPendingDependents.call(modules[name]);
+        // some shameless duck typing :-p
+        var mod = modules['node:' + name] = {
+            'name'         : 'node:' + name,
+            'namespace'    : mod,
+            'ran'          : false,
+            'dependencies' : []
+        };
+        require.async(name).addCallback(function (ns) {
+            mod.ran = true;
+            mod.namespace = ns;
+            Module.prototype.processPendingDependents.call(mod);
         });
     };
+
+    function requireErrorCallback (name, path) {
+        return function () {
+            throw new Error('could not load module "' + name + '" from path "' + path + '"');
+        };
+    }
 
     Module.prototype.loadDependencies = function () {
         var url, i, l, j, jl, name, urlBase, script, chars;
@@ -174,8 +185,8 @@ if (! this.soda) (function (main) {
                     chars = inc[j][2];
                 }
             }
-            if (! urlBase) throw "soda.load: no lib configured for '" + name + "'";
-            url = urlBase + '/' + String(name).replace(/\./g, '/') + '.js';
+            if (! urlBase) throw new Error("soda.load: no lib configured for '" + name + "'");
+            url = urlBase + '/' + String(name).replace(/_/g, '/') + '.js';
             if (main.document && main.document.createElement && head) {
                 script = document.createElement('script');
                 script.setAttribute('type', 'text/javascript');
@@ -194,16 +205,26 @@ if (! this.soda) (function (main) {
             }
             else if (require && require.async) {
                 url = url.replace(/\.js$/, '');
-                require.async(pathPrefix + url);
+                require.async(pathPrefix + url)
+                    .addErrback(requireErrorCallback(name, pathPrefix + url));
             }
             else if (main.load) { // spidermonkey or similar (TODO - require commonjs?)
                 main.load(url);
             }
             else {
-                throw 'Soda: cannot load, unsupported environment';
+                throw new Error('Soda: cannot load, unsupported environment');
             }
         }
     };
+
+    function dirPath (from, to) {
+        var pre = '', post = '';
+        while (from.indexOf(to) != 0) {
+            post = to.match(/[\\\/](\w+)$/)[1] + '/' + post;
+            to = to.replace(/[\\\/]\w+$/, '');
+        }
+        return (pre + post).replace(/\/$/, '');
+    }
 
    /**
     * Function: soda.lib
@@ -222,13 +243,19 @@ if (! this.soda) (function (main) {
     *     soda.load('myLib2'); // throws unknown module error
     */
     soda.lib = function (urlPrefix) {
-        var l = arguments.length - 1, nsPrefix, i;
+        var l = arguments.length - 1, nsPrefix, i, dirs;
+
+        // TODO handle absolute paths on windows
+        if (isNode && urlPrefix.indexOf('/') == 0) {
+            urlPrefix = dirPath(fromPath, urlPrefix);
+        }
+
         if (l == -1) {
-            throw 'soda.lib: no urlPrefix passed';
+            throw new Error('soda.lib: no urlPrefix passed');
         }
         else if (l == 0) {
             if (defaultLoadPath) {
-                throw 'soda.lib: default lib path already set';
+                throw new Error('soda.lib: default lib path already set');
             }
             defaultLoadPath = urlPrefix;
         }
