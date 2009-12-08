@@ -111,8 +111,8 @@ Contact
 
 You can join the Soda Mailing List by sending an email to
 [sodajs@librelist.com](mailto:sodajs@librelist.com). You can also try the #sodajs
-channel on Freenode IRC, or follow the [http://twitter.com/sodajs](sodajs user on
-Twitter) for commit information.
+channel on Freenode IRC, or follow the
+[http://twitter.com/sodajs](sodajs user on Twitter) for commit information.
 
 License
 -------
