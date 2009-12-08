@@ -243,7 +243,7 @@ if (! this.soda) (function (main) {
     *     soda.load('myLib2'); // throws unknown module error
     */
     soda.lib = function (urlPrefix) {
-        var l = arguments.length - 1, nsPrefix, i, dirs;
+        var l = arguments.length - 1, nsPrefix, i;
 
         // TODO handle absolute paths on windows
         if (isNode && urlPrefix.indexOf('/') == 0) {
