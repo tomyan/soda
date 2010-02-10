@@ -38,7 +38,7 @@ if (! this.soda) (function (main) {
         // number of seconds to allow for modules to load before debug
         timeout = soda.timeout = 20,
 
-        isNode = (GLOBAL == main),
+        isNode = (main.GLOBAL == main),
 
         pathPrefix = '',
 
@@ -72,6 +72,8 @@ if (! this.soda) (function (main) {
                 this.loadDependencies();
             }
         };
+
+    soda.GLOBAL = main;
 
     function nodePathPrefix () {
         var sodadir = __filename.split(/[\\\/]/),
@@ -170,10 +172,16 @@ if (! this.soda) (function (main) {
     }
 
     Module.prototype.loadDependencies = function () {
-        var url, i, l, j, jl, name, urlBase, script, chars;
+        var url, i, l, j, jl, name, urlBase, script, chars, ready = true;
         for (i = 0, l = this.dependencies.length; i < l; i++) {
             name = this.dependencies[i];
-            if (typeof(name) != 'string' || modules[name] || scriptElements[name]) continue;
+            if (typeof(name) != 'string') continue;
+            if (name in modules && modules[name].ran) {
+                this.dependencies[i] = modules[name].namespace;
+                continue;
+            }
+            ready = false;
+            if (modules[name] || scriptElements[name]) continue;
             if (name.substr(0, 5) == 'node:') {
                 this.loadNodeDependency(name.substr(5));
                 continue;
@@ -191,6 +199,9 @@ if (! this.soda) (function (main) {
                 script = document.createElement('script');
                 script.setAttribute('type', 'text/javascript');
                 script.setAttribute('src', url);
+                // TODO dynamically write onerror attribute for ie
+//                script.onload = function () { console.log('TODO script ' + url + ' loaded') };
+                script.onerror = function () { console.log('TODO script ' + url + ' errored') };
                 head.appendChild(script);
                 scriptElements[name] = [
                     script,
@@ -215,6 +226,7 @@ if (! this.soda) (function (main) {
                 throw new Error('Soda: cannot load, unsupported environment');
             }
         }
+        if (ready) this.run()
     };
 
     function dirPath (from, to) {
@@ -238,8 +250,8 @@ if (! this.soda) (function (main) {
     *   Example:
     *     soda.lib('http://mylib.com/1.0', 'myLib', 'myOtherLib');
     *     soda.load('myLib'); // loads http://mylib.com/1.0/myLib.js
-    *     soda.load('myLib.aNamespace'); // loads http://mylib.com/1.0/myLib/aNamespace.js
-    *     soda.load('myOtherLib.anotherNamespace'); // loads http://mylib.com/1.0/myOtherLib/anotherNamespace.js
+    *     soda.load('myLib_aNamespace'); // loads http://mylib.com/1.0/myLib/aNamespace.js
+    *     soda.load('myOtherLib_anotherNamespace'); // loads http://mylib.com/1.0/myOtherLib/anotherNamespace.js
     *     soda.load('myLib2'); // throws unknown module error
     */
     soda.lib = function (urlPrefix) {
@@ -262,6 +274,9 @@ if (! this.soda) (function (main) {
         else {
             for (i = 1; i <= l; i++) {
                 nsPrefix = arguments[i];
+                if (! /^\w+(?:_\w+)*$/.test(nsPrefix)) {
+                    throw new Error('soda.lib: invalid namespace prefix "' + nsPrefix + '"');
+                }
                 inc[inc.length] = [
                     new RegExp('^' + nsPrefix + '(?:_|$)'),
                     urlPrefix,
@@ -300,4 +315,4 @@ if (! this.soda) (function (main) {
         new Module(null, dependencies, onload);
     };
 
-})(GLOBAL || this);
+})(this.GLOBAL || this);
