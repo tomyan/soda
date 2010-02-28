@@ -275,7 +275,7 @@ if (! this.soda) (function (main) {
             for (i = 1; i <= l; i++) {
                 nsPrefix = arguments[i];
                 if (! /^\w+(?:_\w+)*$/.test(nsPrefix)) {
-                    throw new Error('soda.lib: invalid namespace prefix "' + nsPrefix + '"');
+                    throw new Error('invalid namespace prefix "' + nsPrefix + '" passed to soda.lib');
                 }
                 inc[inc.length] = [
                     new RegExp('^' + nsPrefix + '(?:_|$)'),
