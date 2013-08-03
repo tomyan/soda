@@ -1,3 +1,5 @@
+Warning: this project is no longer maintained. Consider using something else.
+
 Soda JavaScript Loader
 ======================
 
